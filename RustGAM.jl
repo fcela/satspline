@@ -1,7 +1,9 @@
 include("common.jl")
 
 module RustGAM
-  import Base.call
+  using Libdl
+  using LinearAlgebra
+  using Base
   export
     LossFn, SquaredLoss, LogisticLoss, HuberLoss,
     approximate_regularization_path,log_space_reg_path,
@@ -29,21 +31,21 @@ module RustGAM
     delta :: Float64
   end
 
-  loss_type_to_rust_enum(l :: SquaredLoss) = ccall(Libdl.dlsym(library, :return_sq_loss),Ptr{Void},())
-  loss_type_to_rust_enum(l :: LogisticLoss) = ccall(Libdl.dlsym(library, :return_log_loss),Ptr{Void},())
-  loss_type_to_rust_enum(l :: HuberLoss) = ccall(Libdl.dlsym(library, :return_huber_loss),Ptr{Void}, (Float64,), l.delta)
+  loss_type_to_rust_enum(l :: SquaredLoss) = ccall(Libdl.dlsym(library, :return_sq_loss),Ptr{Nothing},())
+  loss_type_to_rust_enum(l :: LogisticLoss) = ccall(Libdl.dlsym(library, :return_log_loss),Ptr{Nothing},())
+  loss_type_to_rust_enum(l :: HuberLoss) = ccall(Libdl.dlsym(library, :return_huber_loss),Ptr{Nothing}, (Float64,), l.delta)
 
 
   function make_training_set(A :: Matrix{Float64})
     (n,d) = size(A);
     A_vecs = Vector{Float64}[vec(A[i,:]) for i = 1:n]
-    td = ccall(mk_ts,Ptr{Void},
+    td = ccall(mk_ts,Ptr{Nothing},
     (Ptr{Ptr{Float64}}, UInt64, UInt64),
     A_vecs,n, d)
   end
 
   function make_gam(d :: Int64)
-    gam = ccall(mk_g,Ptr{Void},
+    gam = ccall(mk_g,Ptr{Nothing},
     (UInt64,),
     d)
   end
@@ -51,7 +53,7 @@ module RustGAM
   function fit_gam!(gam, training_data,y,  lambda :: Float64, tol :: Float64, loss :: LossFn; use_offset :: Bool = true)
     r_loss = loss_type_to_rust_enum(loss)
     ccall(f_g,Float64,
-    (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Float64, Float64, Bool, Ptr{Void}),
+    (Ptr{Nothing}, Ptr{Nothing}, Ptr{Float64}, Float64, Float64, Bool, Ptr{Nothing}),
     gam, training_data, y, lambda, tol, use_offset, r_loss);
   end
 
@@ -66,24 +68,24 @@ module RustGAM
     end
 
   function get_knots(gam)
-    k = ccall(num_k,UInt64,(Ptr{Void},),gam);
+    k = ccall(num_k,UInt64,(Ptr{Nothing},),gam);
     f_idx = zeros(UInt64,k)
     locations = zeros(Float64,k)
     weights = zeros(Float64,k)
-    ccall(get_k,Void, (Ptr{Void},Ptr{UInt64},Ptr{Float64},Ptr{Float64}), gam, f_idx, locations, weights)
+    ccall(get_k,Nothing, (Ptr{Nothing},Ptr{UInt64},Ptr{Float64},Ptr{Float64}), gam, f_idx, locations, weights)
     (map(Int64,f_idx).+1, locations, weights)
   end
 
 get_offset(gam) =
-    ccall(Libdl.dlsym(library, :offset),Float64,(Ptr{Void}, ),gam)
+    ccall(Libdl.dlsym(library, :offset),Float64,(Ptr{Nothing}, ),gam)
 
   function apply_gam(gam, x :: Vector{Float64})
-    ccall(apply_g,Float64,(Ptr{Void}, Ptr{Float64}, UInt64),gam,x,length(x))
+    ccall(apply_g,Float64,(Ptr{Nothing}, Ptr{Float64}, UInt64),gam,x,length(x))
   end
 
   # function computescore(training_data,y, loss :: LossFn; use_offset :: Bool = true)
-  #   ccall(compute_score,Ptr{Void},
-  #   (Ptr{Void}, Ptr{Float64},Ptr{Void}, Float64, Bool),
+  #   ccall(compute_score,Ptr{Nothing},
+  #   (Ptr{Nothing}, Ptr{Float64},Ptr{Nothing}, Float64, Bool),
   #   training_data,y,loss_type_to_rust_enum(loss), use_offset);
   # end
 
@@ -91,7 +93,7 @@ get_offset(gam) =
       (f_idx, locations, weights) = get_knots(gam)
       offset = get_offset(gam)
       nonzero_idx = unique(f_idx)
-      GAM([Spline(idx, locations[find(f_idx .== idx)], weights[find(f_idx .== idx)]) for idx in nonzero_idx], offset)
+      GAM([Spline(idx, locations[findall(f_idx .== idx)], weights[findall(f_idx .== idx)]) for idx in nonzero_idx], offset)
   end
 
   function approximate_regularization_path(A :: Matrix{Float64}, y, tol :: Float64, m :: Float64,

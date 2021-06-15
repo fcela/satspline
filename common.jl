@@ -1,7 +1,6 @@
-
 function computebounds(X, min_percentile, max_percentile)
-  assert(0 <= min_percentile < max_percentile <= 1.0)
-  sorted = sort(X,1)
+  @assert(0 <= min_percentile < max_percentile <= 1.0)
+  sorted = sort(X,dims=1)
   n = size(X,1)
   min_idx = round(Int,ceil(min_percentile*n + 1E-5))
   max_idx = round(Int,floor(max_percentile*n))

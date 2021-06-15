@@ -1,20 +1,25 @@
 include("../RustGAM.jl")
 using Main.RustGAM
+using DelimitedFiles
+using Statistics
+using Random
+
 # using PGFPlots
 data = readdlm("datasets/abalone")
 feature_names = [strip(s) for s in readlines(open("datasets/abalone.desc"))]
 y_mins = Float64[-2, -3, -1, -1,-1,-18,-5,-1]
 y_maxes = Float64[1,1,5,3,25,1,1,12]
-y_mins[:] = -15.0;
-y_maxes[:] = 15;
+y_mins[:] .= -15.0;
+y_maxes[:] .= 15;
 
 age = map(Float64,data[:,1])
 features = data[:,2:end]
 data = map(d -> parse(Float64,split(d,":")[2]),features)
 
-tm,tstd = mean(data,1), std(data,1)
+tm,tstd = mean(data,dims=1), std(data,dims=1)
 train_features = (data.-tm)./tstd
-srand(100)
+
+Random.seed!(100)
 rp = randperm(size(train_features,1))
 test_ind, train_ind  = rp[1:400], rp[401:end]
 

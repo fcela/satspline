@@ -1,5 +1,8 @@
 include("../RustGAM.jl")
 using Main.RustGAM
+using DelimitedFiles
+using Statistics
+using Random
 #using PGFPlots
 
 #
@@ -46,8 +49,8 @@ function cv_tau()
     #val_features = (val_features.-tm)./tstd
     val_features = standardize(val_features, lb, ub)
 
-    const n = size(train_features,1)
-    const d = size(train_features,2)
+    n = size(train_features,1)
+    d = size(train_features,2)
 
     @time path = approximate_regularization_path(train_features, train_y, 1.0, 100.0,
       SquaredLoss(); use_offset = true, n_tau = 130)
@@ -62,7 +65,7 @@ function cv_tau()
      for (tau, gam) in path[70:end]
     ]
 
-    return err_path[indmin([y for (x,y) in err_path])][1]
+    return err_path[argmin([y for (x,y) in err_path])][1]
 end
 
 cv_taus = [cv_tau() for i in 1:1]
